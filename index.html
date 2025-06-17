@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <title>Particle Cloud All-in-One</title>
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+  <style>
+    @import "https://unpkg.com/open-props/easings.min.css";
+    /* Smooth theme transitions */
+    html, body, #intro {
+      transition: background 0.5s ease;
+    }
+    .theme-toggle, .intro-text h1, .intro-text p, #enter-btn {
+      transition: color 0.5s ease, background 0.5s ease, text-shadow 0.5s ease, box-shadow 0.5s ease;
+    }
+    .sun-and-moon > :is(.moon, .sun), .sun-and-moon > .sun-beams {
+      transition: fill 0.5s ease, stroke 0.5s ease;
+    }
+    .toggle-scene__cord, .toggle-scene__cord-end, .toggle-scene__dummy-cord line {
+      transition: stroke 0.5s ease, fill 0.5s ease;
+    }
+    /* Fullscreen + dark background */
+    body {
+      margin: 0;
+      overflow: hidden;
+      /* use dark‑/light background that the theme toggle sets,
+         but keep the original black as a fallback            */
+      background: var(--bg, #000);
+    }
+    canvas { display: block; }
+
+    #intro {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg); overflow: hidden; z-index: 10;
+    }
+    #intro canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+    /* 3D styling for intro text wrapper */
+    .intro-text {
+      position: relative;
+      perspective: 800px;
+      transform-style: preserve-3d;
+      transform: rotateX(2deg);
+      text-align: center;
+      z-index: 1;
+      pointer-events: none;
+    }
+    .intro-text #enter-btn {
+      pointer-events: auto;
+    }
+
+    .intro-text h1 {
+      transform: translateZ(40px) rotateX(-2deg);
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      font-family: 'Poppins', sans-serif;
+      font-size: clamp(2rem, 6vw, 4rem);
+      font-weight: 600;
+      margin-bottom: 0.5em;
+      background: linear-gradient(45deg, #aeffde, #cfa0ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .intro-text p {
+      transform: translateZ(20px) rotateX(-1deg);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      font-family: 'Poppins', sans-serif;
+      font-size: clamp(1rem, 4vw, 1.75rem);
+      margin-bottom: 1em;
+      color: rgba(255,255,255,0.85);
+    }
+    .intro-text::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60vw;
+      height: 60vw;
+      max-width: 400px;
+      max-height: 400px;
+      background: radial-gradient(circle, rgba(0,0,0,0.1) 0%, transparent 70%);
+      border-radius: 50%;
+      z-index: -1;
+    }
+    #enter-btn {
+      position: relative;
+      z-index: 2 !important;
+      pointer-events: auto !important;
+      transform-style: preserve-3d;
+      transform: translateZ(30px) rotateX(-3deg);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      font-family: 'Poppins', sans-serif;
+      font-size: 1rem;
+      padding: 0.75em 1.5em;
+      border-radius: 30px;
+      background: linear-gradient(45deg, #aeffde, #cfa0ff);
+      border: none;
+      color: #000;
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    #enter-btn:hover {
+      transform: translateZ(40px) rotateX(-4deg);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+    /* Micro-bounce feedback on click */
+    #enter-btn:active {
+      transform: scale(0.9);
+    }
+    #main-site { opacity: 0; transition: opacity 0.8s ease-in; }
+
+    /* ——— Sun / Moon Theme‑Toggle  &  Rope‑Pull Chain ——— */
+
+    :root {
+      --on: 0;
+      --bg: hsl(calc(200 - (var(--on) * 160)), calc((20 + (var(--on) * 50)) * 1%), calc((20 + (var(--on) * 60)) * 1%));
+      --cord-light: hsl(0 0% 25%);   /* dark rope for sun/light theme */
+      --cord-dark: #C0C0C0;   /* silver rope for moon/dark theme */
+      --cord: var(--cord-light);
+      --cord-hover-light: #777777;    /* hover color for light rope */
+      --cord-hover-dark: #EEEEEE;     /* hover color for dark rope */
+      --cord-hover: var(--cord-hover-light);
+    }
+    [data-theme="dark"] {
+      --cord: var(--cord-dark);
+      --cord-hover: var(--cord-hover-dark);
+    }
+
+    [data-theme="light"] .intro-text p {
+      color: rgba(0, 0, 0, 0.85);
+      text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+    }
+
+    [data-theme="dark"] {
+      --bg: #111111;
+    }
+    html[data-theme="light"] {
+      --bg: #f4f4f6;
+    }
+    html[data-theme="light"] body {
+      background: #f4f4f6 !important;
+    }
+    html[data-theme="light"] #intro {
+      background: #f4f4f6 !important;
+    }
+
+    /* Light theme color overrides */
+    html[data-theme="light"] .theme-toggle {
+      --icon-fill: #f39c12;
+      --icon-fill-hover: #e67e22;
+    }
+
+    html[data-theme="light"] .intro-text h1 {
+      background: linear-gradient(45deg, #3FAE8E, #7C3D90);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    html[data-theme="light"] #enter-btn {
+      background: linear-gradient(45deg, #3FAE8E, #7C3D90);
+      color: #fff;
+    }
+
+.sun-and-moon > :is(.moon, .sun, .sun-beams) { transform-origin: center; }
+.sun-and-moon > .sun { transform: scale(1); }
+.sun-and-moon > .sun-beams { opacity: 1; transform: rotateZ(0); }
+.sun-and-moon > .moon > circle { transform: translateX(0); cx: 24; }
+.sun-and-moon > :is(.moon, .sun) { fill: var(--icon-fill); }
+.theme-toggle:is(:hover, :focus-visible) > .sun-and-moon > :is(.moon, .sun) { fill: var(--icon-fill-hover); }
+.sun-and-moon > .sun-beams { stroke: var(--icon-fill); stroke-width: 2px; }
+.theme-toggle:is(:hover, :focus-visible) .sun-and-moon > .sun-beams { stroke: var(--icon-fill-hover); }
+[data-theme="dark"] .sun-and-moon > .sun { transform: scale(1.75); }
+[data-theme="dark"] .sun-and-moon > .sun-beams { opacity: 0; }
+[data-theme="dark"] .sun-and-moon > .moon > circle { transform: translateX(-7px); }
+@supports (cx: 1) {
+  [data-theme="dark"] .sun-and-moon > .moon > circle { cx: 17; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sun-and-moon > .sun { transition: transform .5s var(--ease-elastic-3); }
+  .sun-and-moon > .sun-beams { transition: transform .5s var(--ease-elastic-4), opacity .5s var(--ease-3); }
+  .sun-and-moon .moon > circle { transition: transform .25s var(--ease-out-5); }
+  @supports (cx: 1) {
+    .sun-and-moon .moon > circle { transition: cx .25s var(--ease-out-5); }
+  }
+  [data-theme="dark"] .sun-and-moon > .sun { transition: .25s var(--ease-3); }
+  [data-theme="dark"] .sun-and-moon > .sun-beams { transition-duration: .15s; transform: rotateZ(-25deg); }
+  [data-theme="dark"] .sun-and-moon > .moon > circle { transition-duration: .5s; transition-delay: .25s; }
+}
+
+/* Icon colors */
+.theme-toggle {
+  --icon-fill: #f39c12;
+  --icon-fill-hover: #e67e22;
+  color: var(--icon-fill);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  position: absolute;
+  z-index: 31;
+  top: 20px;
+  left: 20px;
+}
+.theme-toggle:hover .sun-and-moon,
+.theme-toggle:focus-visible .sun-and-moon {
+  color: var(--icon-fill-hover);
+}
+
+    /* Rope pull toggle styles */
+    .toggle-scene{
+      height:250px;
+      width:auto;
+      overflow:visible!important;
+      position:absolute;
+      /* hang the chain just a bit below the top‑right corner so it’s
+         always visible even on small screens                                */
+      top:-115px;
+      right:-27px;
+      z-index:30;
+    }
+    .toggle-scene__cord{
+      stroke:var(--cord);
+      stroke-width:6;
+      stroke-linecap:round;
+      stroke-dasharray:6 6;
+      cursor:move;
+      fill:none;
+      transition: stroke 0.3s ease, fill 0.3s ease;
+    }
+    .toggle-scene__cord:nth-of-type(1){display:none}
+    .toggle-scene__cord:nth-of-type(n+2):nth-of-type(-n+5){display:none}
+    .toggle-scene__cord-end{
+      stroke:var(--cord);
+      fill:var(--cord);
+      stroke-width:.2666;
+      transition: stroke 0.3s ease, fill 0.3s ease;
+    }
+    .toggle-scene__dummy-cord line{
+      stroke:var(--cord);
+      stroke-width:6;
+      stroke-dasharray:6 6;
+      stroke-linecap:round;
+      transition: stroke 0.3s ease, fill 0.3s ease;
+    }
+    .toggle-scene:hover .toggle-scene__cord,
+    .toggle-scene:hover .toggle-scene__dummy-cord line {
+      stroke: var(--cord-hover);
+    }
+    .toggle-scene:hover .toggle-scene__cord-end {
+      stroke: var(--cord-hover);
+      fill: var(--cord-hover);
+    }
+  </style>
+  <script src="https://unpkg.com/gsap@3/dist/gsap.min.js"></script>
+  <script src="https://assets.codepen.io/16327/MorphSVGPlugin3.min.js"></script>
+  <script src="https://unpkg.com/gsap@3/dist/Draggable.min.js"></script>
+</head>
+<body>
+  <!-- Intro Cover Page -->
+  <div id="intro">
+    <!-- Sun / Moon button -->
+    <button class="theme-toggle" id="theme-toggle" aria-label="light" title="Toggle theme">
+      <svg class="sun-and-moon" aria-hidden="true" width="24" height="24" viewBox="0 0 24 24">
+        <mask class="moon" id="moon-mask">
+          <rect width="100%" height="100%" fill="white"/>
+          <circle cx="24" cy="10" r="6" fill="black"/>
+        </mask>
+        <circle class="sun" cx="12" cy="12" r="6" mask="url(#moon-mask)" fill="currentColor"/>
+        <g class="sun-beams" stroke="currentColor">
+          <line x1="12" y1="1"  x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22"  x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64"  x2="19.78" y2="4.22"/>
+        </g>
+      </svg>
+    </button>
+
+    <!-- Rope pull toggle -->
+    <svg class="toggle-scene" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMaxYMin meet"
+         viewBox="0 0 197.451 481.081">
+      <defs>
+        <marker id="a" orient="auto" overflow="visible" refx="0" refy="0">
+          <path class="toggle-scene__cord-end" fill-rule="evenodd"
+                d="M.98 0a1 1 0 11-2 0 1 1 0 012 0z"></path>
+        </marker>
+      </defs>
+      <g class="toggle-scene__cords">
+        <path class="toggle-scene__cord" marker-end="url(#a)"
+              d="M123.228-28.56v150.493" transform="translate(-24.503 256.106)"></path>
+        <path class="toggle-scene__cord" marker-end="url(#a)"
+              d="M123.228-28.59s28 8.131 28 19.506-18.667 13.005-28 19.507c-9.333 6.502-28 8.131-28 19.506s28 19.507 28 19.507"
+              transform="translate(-24.503 256.106)"></path>
+        <path class="toggle-scene__cord" marker-end="url(#a)"
+              d="M123.228-28.575s-20 16.871-20 28.468c0 11.597 13.333 18.978 20 28.468 6.667 9.489 20 16.87 20 28.467 0 11.597-20 28.468-20 28.468"
+              transform="translate(-24.503 256.106)"></path>
+        <path class="toggle-scene__cord" marker-end="url(#a)"
+              d="M123.228-28.569s16 20.623 16 32.782c0 12.16-10.667 21.855-16 32.782-5.333 10.928-16 20.623-16 32.782 0 12.16 16 32.782 16 32.782"
+              transform="translate(-24.503 256.106)"></path>
+        <path class="toggle-scene__cord" marker-end="url(#a)"
+              d="M123.228-28.563s-10 24.647-10 37.623c0 12.977 6.667 25.082 10 37.623 3.333 12.541 10 24.647 10 37.623 0 12.977-10 37.623-10 37.623"
+              transform="translate(-24.503 256.106)"></path>
+        <g class="toggle-scene__dummy-cord">
+          <line x1="98.7255" y1="227.546" x2="98.7255" y2="378.039" marker-end="url(#a)"></line>
+        </g>
+        <circle class="toggle-scene__hit-spot" cx="98.7255" cy="380.5405" r="60" fill="transparent"></circle>
+      </g>
+    </svg>
+    <canvas id="particle-canvas" aria-hidden="true"></canvas>
+    <div class="intro-text" role="region" aria-label="Welcome to Zijie Cai’s portfolio">
+      <h1 data-text="Hello, I’m Zijie"></h1>
+      <p data-text="Welcome to my portfolio"></p>
+      <button id="enter-btn" aria-label="Enter the site" style="opacity: 0; pointer-events: none;" tabindex="0">Enter</button>
+    </div>
+  </div>
+
+  <!-- Main site blank placeholder -->
+  <div id="main-site">
+    <!-- Content will appear here after entering -->
+  </div>
+
+  <script>
+  /* ——— Theme preference & rope‑pull logic ——— */
+  const storageKey='theme-preference';
+  localStorage.removeItem(storageKey);
+  const onClick=()=>{theme.value=theme.value==='light'?'dark':'light';setPreference();};
+  const getColorPreference = () => localStorage.getItem(storageKey) || 'dark';
+  const setPreference=()=>{localStorage.setItem(storageKey,theme.value);reflectPreference();};
+  const reflectPreference = () => {
+    // apply data‑theme for the Sun/Moon icon styles
+    document.firstElementChild.setAttribute('data-theme', theme.value);
+    document.querySelector('.theme-toggle').setAttribute('aria-label', theme.value);
+    // drive the rope/background palette by toggling --on (0 → light, 1 → dark)
+    document.documentElement.style.setProperty('--on', theme.value === 'dark' ? 1 : 0);
+  }
+  const theme={value:getColorPreference()};
+  reflectPreference();
+  window.addEventListener('load',()=>{
+    reflectPreference();
+    document.querySelector('.theme-toggle').addEventListener('click',onClick);
+  });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',({matches})=>{
+    theme.value=matches?'dark':'light';setPreference();
+  });
+
+  /* Rope‑pull toggle */
+  const PULL_THRESHOLD=50;
+  const {gsap:{registerPlugin,set:gsSet,to:gsTo,timeline:gsTimeline},MorphSVGPlugin,Draggable}=window;
+  registerPlugin(MorphSVGPlugin);
+  const CORDS=document.querySelectorAll('.toggle-scene__cord');
+  const HIT=document.querySelector('.toggle-scene__hit-spot');
+  const DUMMY=document.querySelector('.toggle-scene__dummy-cord');
+  const DUMMY_CORD=document.querySelector('.toggle-scene__dummy-cord line');
+  const PROXY=document.createElement('div');
+  const ENDX=DUMMY_CORD.getAttribute('x2'),ENDY=DUMMY_CORD.getAttribute('y2');
+  const RESET=()=>gsSet(PROXY,{x:ENDX,y:ENDY});
+  RESET();
+  const CORD_TL=gsTimeline({
+    paused:true,
+    onStart:()=>{
+      onClick();
+      gsSet([DUMMY,HIT],{display:'none'});
+      gsSet(CORDS[0],{display:'block'});
+      document.querySelector('.toggle-scene').style.pointerEvents = 'none';
+    },
+    onComplete:()=>{
+      gsSet([DUMMY,HIT],{display:'block'});
+      gsSet(CORDS[0],{display:'none'});
+      RESET();
+      document.querySelector('.toggle-scene').style.pointerEvents = 'auto';
+    }
+  });
+  for(let i=1;i<CORDS.length;i++){
+    CORD_TL.add(gsTo(CORDS[0],{
+      morphSVG:{shape:CORDS[i],shapeIndex:0,centerMorph:false},
+      transformOrigin:"50% 0%",duration:.1,repeat:1,yoyo:true
+    }));
+  }
+  let startX,startY;
+  Draggable.create(PROXY,{
+    trigger:HIT,type:'x,y',
+    onPress:e=>{startX=e.x;startY=e.y;idleTween.pause();},
+    onDrag:function(){gsSet(DUMMY_CORD,{attr:{x2:this.x,y2:this.y}});},
+    onRelease:function(e){
+      const DISTX=Math.abs(e.x-startX),DISTY=Math.abs(e.y-startY);
+      gsTo(DUMMY_CORD,{attr:{x2:ENDX,y2:ENDY},duration:.1,onComplete:()=>{
+        if(Math.hypot(DISTX,DISTY)>PULL_THRESHOLD){CORD_TL.restart();idleTween.pause();}
+        else{RESET();}
+      }});
+    }
+  });
+
+  const sagAmount=50;
+  const origY=parseFloat(ENDY);
+  const idleTween=gsap.to(DUMMY_CORD,{
+    attr:{y2:origY+sagAmount},
+    repeat:-1,yoyo:true,ease:'sine.inOut',duration:1
+  });
+  </script>
+
+  <!-- Three.js and Animation Script -->
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.150.0/build/three.module.js';
+
+    // Determine if current theme is light
+    const isLightTheme = () => document.documentElement.getAttribute('data-theme') === 'light';
+
+    // Renderer using existing canvas
+    const canvas = document.getElementById('particle-canvas');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
+    camera.position.z = 4;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, canvas, alpha: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setClearColor(0x000000, 0); // make canvas background transparent
+    window.addEventListener('resize', () => {
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    // Particle geometry & material (same as before)
+    // Pull in site theme accent colors
+    // const themeColor1 = getComputedStyle(document.documentElement)
+    //   .getPropertyValue('--orange-yellow-crayola')
+    //   .trim();
+    // const themeColor2 = getComputedStyle(document.documentElement)
+    //   .getPropertyValue('--bittersweet-shimmer')
+    //   .trim();
+    const count = 3500;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    // Torus knot parameters
+    const p = 2, q = 3;
+    const R = 2.0, r = 0.5;
+    // Color control: adjust these to change loop color behavior
+    const baseHueOffset = 0.0;   // static hue shift [0–1]
+    const hueSpeed = 0.05;       // hue rotation speed (set to 0 for no animation)
+    for (let i = 0; i < count; i++) {
+      const t = (i / count) * Math.PI * 2 * q;
+      const x = (R + r * Math.cos(p * t / q)) * Math.cos(t);
+      const y = (R + r * Math.cos(p * t / q)) * Math.sin(t);
+      const z = r * Math.sin(p * t / q);
+      positions[3*i]   = x;
+      positions[3*i+1] = y;
+      positions[3*i+2] = z;
+    }
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    // Color particles by angle around the ring (rainbow gradient)
+    const colorArray = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const ix = 3 * i;
+      const x = positions[ix];
+      const y = positions[ix + 1];
+      // Compute angle and convert to hue [0,1]
+      let angle = Math.atan2(y, x);
+      if (angle < 0) angle += Math.PI * 2;
+      const hue = angle / (2 * Math.PI);
+      const col = new THREE.Color();
+      col.setHSL(hue, 0.8, isLightTheme() ? 0.2 : 0.6);
+      colorArray[ix]     = col.r;
+      colorArray[ix + 1] = col.g;
+      colorArray[ix + 2] = col.b;
+    }
+    geometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+    const baseSize = 0.02;
+    const material = new THREE.PointsMaterial({
+      size: baseSize,
+      vertexColors: true,
+      transparent: true, opacity: 0.7,
+      depthWrite: false, blending: THREE.AdditiveBlending
+    });
+    const particles = new THREE.Points(geometry, material);
+    const ringGroup = new THREE.Group();
+    ringGroup.add(particles);
+    scene.add(ringGroup);
+    // compute world-space half-diameter of outermost ring
+    const maxRadius = R + r;
+
+    // function to scale ring so it fits viewport consistently
+    function updateScale() {
+      // adjust camera and renderer
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      // compute pixel density per world unit at camera distance
+      const fovRad = camera.fov * Math.PI / 180;
+      const focalLength = (window.innerHeight / 2) / Math.tan(fovRad / 2);
+      const pixelPerUnit = focalLength / camera.position.z;
+      // desired radius in pixels (40% of min dimension)
+      const desiredPx = Math.min(window.innerWidth, window.innerHeight) * 0.5;
+      // compute scale factor
+      const scale = desiredPx / (maxRadius * pixelPerUnit);
+      ringGroup.scale.setScalar(scale);
+      ringGroup.userData.baseScale = scale;
+    }
+    window.addEventListener('resize', updateScale);
+    // initial scale
+    updateScale();
+
+    // tilt the ring to stand up by default
+    ringGroup.rotation.x = Math.PI;
+
+    // Animation loop
+    const clock = new THREE.Clock();
+    let isPointerDown = false;
+    let lastX = 0, lastY = 0;
+
+    /* helper: did the event start on a UI element we don’t want to rotate with? */
+    function isUIEvent(evt){
+      return evt.target.closest('.toggle-scene, .theme-toggle');
+    }
+
+    window.addEventListener('pointerdown', e => {
+      if (isUIEvent(e)) return;           // ignore rope/icon drags
+      isPointerDown = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+    });
+
+    window.addEventListener('pointerup', () => { isPointerDown = false; });
+
+    window.addEventListener('pointermove', e => {
+      if (!isPointerDown) return;
+      const dx = (e.clientX - lastX) / window.innerWidth * Math.PI;
+      const dy = (e.clientY - lastY) / window.innerHeight * Math.PI;
+      ringGroup.rotation.y += dx;
+      ringGroup.rotation.x += dy;
+      lastX = e.clientX;
+      lastY = e.clientY;
+    });
+
+    let isExploding = false;
+    let explosionSpeed = 0.1;
+    function animate() {
+      const dt = clock.getDelta();
+      const t = clock.getElapsedTime();
+
+      requestAnimationFrame(animate);
+
+      const pos = geometry.attributes.position.array;
+      // Explosion effect: particles radiate outward
+      if (isExploding) {
+        for (let j = 0; j < count; j++) {
+          const j3 = 3 * j;
+          pos[j3]   += pos[j3]   * explosionSpeed;
+          pos[j3+1] += pos[j3+1] * explosionSpeed;
+          pos[j3+2] += pos[j3+2] * explosionSpeed;
+        }
+        explosionSpeed *= 0.95; // gradually slow explosion
+      }
+
+      for (let i = 0; i < count; i++) {
+        const i3 = 3 * i;
+        // subtle noise
+        pos[i3]   += Math.sin(t + pos[i3]   * 3.0) * 0.00025;
+        pos[i3+1] += Math.cos(t + pos[i3+1] * 3.0) * 0.00025;
+        pos[i3+2] += Math.sin(t + pos[i3+2] * 3.0) * 0.00025;
+      }
+
+      // Enhanced 3D auto-rotation
+      ringGroup.rotation.x += dt * 0.1;
+      ringGroup.rotation.y += dt * 0.07;
+      ringGroup.rotation.z += dt * 0.05;
+      // Depth oscillation for added 3D motion
+      ringGroup.position.z = Math.sin(t * 0.5) * 0.3;
+
+      // Subtle camera bob for parallax
+      camera.position.x = Math.sin(t * 0.2) * 0.2;
+      camera.position.y = Math.cos(t * 0.15) * 0.1;
+      camera.lookAt(scene.position);
+
+      // Pulsing size
+      material.size = baseSize + Math.sin(t * 2) * 0.002;
+
+      // Dynamic hue shift: rotate palette continuously
+      ringGroup.children.forEach(ring => {
+        const posArr = ring.geometry.attributes.position.array;
+        const colArr = ring.geometry.attributes.color.array;
+        for (let i = 0; i < count; i++) {
+          const ix = 3 * i;
+          let angle = Math.atan2(posArr[ix+1], posArr[ix]);
+          if (angle < 0) angle += Math.PI * 2;
+          // base hue plus optional static and animated offset
+          const hue = (angle / (2 * Math.PI) + baseHueOffset + t * hueSpeed) % 1;
+          const col = new THREE.Color();
+          col.setHSL(hue, 0.8, isLightTheme() ? 0.2 : 0.6);
+          colArr[ix]     = col.r;
+          colArr[ix + 1] = col.g;
+          colArr[ix + 2] = col.b;
+        }
+        ring.geometry.attributes.color.needsUpdate = true;
+      });
+
+      geometry.attributes.position.needsUpdate = true;
+
+      // Breathing distortion on ring: slight x/y scale oscillation
+      const base = ringGroup.userData.baseScale || 1;
+      const breathe = Math.sin(clock.getElapsedTime() * 1.5) * 0.02; // ±2%
+      ringGroup.scale.set(
+        base * (1 + breathe),
+        base * (1 - breathe),
+        base
+      );
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Enter button transition
+    document.addEventListener('DOMContentLoaded', () => {
+      // Typing animation utility
+      function typeText(el, text, delay) {
+        el.textContent = '';
+        let idx = 0;
+        const timer = setInterval(() => {
+          el.textContent += text.charAt(idx);
+          idx++;
+          if (idx >= text.length) clearInterval(timer);
+        }, delay);
+      }
+
+      // Kick off typing on intro texts
+      const h1 = document.querySelector('.intro-text h1');
+      const p  = document.querySelector('.intro-text p');
+      const h1Text = h1.dataset.text;
+      const pText  = p.dataset.text;
+      typeText(h1, h1Text, 100);
+      setTimeout(() => typeText(p, pText, 80), h1Text.length * 100 + 300);
+
+      // Reveal the button once subtitle has finished typing
+      setTimeout(() => {
+        const btn = document.getElementById('enter-btn');
+        btn.style.transition = 'opacity 0.5s ease';
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+        // Now that the button is visible, bind its event handlers
+        btn.addEventListener('click', doEnter);
+        btn.addEventListener('touchend', doEnter);
+        btn.addEventListener('keyup', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') doEnter();
+        });
+      }, h1Text.length * 100 + 300 + pText.length * 80 + 200);
+
+      const intro = document.getElementById('intro');
+      const main = document.getElementById('main-site');
+      const enterBtn = document.getElementById('enter-btn');
+      function doEnter() {
+        isExploding = true;
+        // let explosion run briefly, then fade out intro
+        setTimeout(() => {
+          intro.style.transition = 'opacity 0.8s ease-out';
+          intro.style.opacity = '0';
+          setTimeout(() => {
+            intro.style.display = 'none';
+            main.style.opacity = '1';
+          }, 800);
+        }, 600);
+      }
+    });
+  </script>
+</body>
+</html>
