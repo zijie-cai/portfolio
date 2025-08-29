@@ -1,7 +1,7 @@
 import { works } from '@/data/works';
 import AppLayout from '@/layouts/AppLayout';
 import { Work } from '@/types';
-import { GetServerSideProps } from 'next';
+import { GetStaticPaths, GetStaticProps } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import Slider, { Settings } from 'react-slick';
@@ -89,18 +89,21 @@ const WorkDetail: React.FunctionComponent<Props> = ({ work }) => {
   );
 };
 
-export const getServerSideProps: GetServerSideProps = async (context) => {
+export const getStaticPaths: GetStaticPaths = async () => {
+  const paths = works.map((work) => ({ params: { id: String(work.id) } }));
+  return { paths, fallback: false };
+};
+
+export const getStaticProps: GetStaticProps = async (context) => {
   const id = context.params?.id as string;
   const work = works.find((work) => work.id === Number(id));
-  if (work) {
-    return {
-      props: {
-        work,
-      },
-    };
+  if (!work) {
+    return { notFound: true };
   }
   return {
-    notFound: true,
+    props: {
+      work,
+    },
   };
 };
 export default WorkDetail;
